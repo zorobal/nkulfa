@@ -1,0 +1,7 @@
+{
+  "name": "COOPS-FLOW - COOPS-CA NKUL-FA",
+  "description": "Plateforme intégrée de gestion, pilotage et Business Intelligence agro-pastorale pour la coopérative COOPS-CA NKUL-FA (Cameroun).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
