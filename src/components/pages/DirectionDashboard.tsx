@@ -11,6 +11,12 @@ import {
   ChevronRight,
   ShieldCheck,
   CheckCircle2,
+  Compass,
+  Plus,
+  MapPin,
+  Layers,
+  Wheat,
+  Truck,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -26,7 +32,15 @@ import {
 } from 'recharts';
 import { APP_IMAGES } from '../../assets/images';
 
-export const DirectionDashboard: React.FC = () => {
+interface DirectionDashboardProps {
+  onOpenWorkflow?: () => void;
+  onNavigateToTab?: (tab: string) => void;
+}
+
+export const DirectionDashboard: React.FC<DirectionDashboardProps> = ({
+  onOpenWorkflow,
+  onNavigateToTab,
+}) => {
   // Monthly Evolution data matching Screenshot 2
   const monthlyProductionData = [
     { month: 'Jan', vegetale: 95, animale: 65, ca: 11.2 },
@@ -72,6 +86,87 @@ export const DirectionDashboard: React.FC = () => {
 
   return (
     <div className="space-y-4 p-3 lg:p-4 bg-slate-50 min-h-screen">
+      {/* QUICK ACTIONS & WORKFLOW BANNER */}
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold uppercase tracking-wider">
+              <Plus className="w-3 h-3" />
+              Centre de Création & Opérations
+            </span>
+            <span className="text-xs text-slate-500 hidden sm:inline">• Raccourcis directs de saisie</span>
+          </div>
+          <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+            Que souhaitez-vous créer ou enregistrer aujourd'hui ?
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Sélectionnez une action pour ouvrir directement le module et son formulaire d'enregistrement.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {onNavigateToTab && (
+            <>
+              <button
+                onClick={() => onNavigateToTab('terrains_parcelles')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                title="Créer un nouveau terrain cadastral"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Nouveau Terrain</span>
+              </button>
+
+              <button
+                onClick={() => onNavigateToTab('terrains_parcelles')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                title="Ajouter une nouvelle parcelle"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Nouvelle Parcelle</span>
+              </button>
+
+              <button
+                onClick={() => onNavigateToTab('agriculture')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                title="Affecter une parcelle en culture"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Culture / Campagne</span>
+              </button>
+
+              <button
+                onClick={() => onNavigateToTab('collecte')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                title="Enregistrer une collecte de récolte"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Collecte Silo</span>
+              </button>
+
+              <button
+                onClick={() => onNavigateToTab('commercialisation')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                title="Créer une commande ou vente"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Vente / Client</span>
+              </button>
+            </>
+          )}
+
+          {onOpenWorkflow && (
+            <button
+              onClick={onOpenWorkflow}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+              title="Consulter le guide complet et les étapes du workflow"
+            >
+              <Compass className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Guide & Workflow</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* 4 TOP KPI CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {/* Card 1: Superficie */}
@@ -142,6 +237,39 @@ export const DirectionDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Guide & Workflow Quick-Start Callout Banner */}
+      {onOpenWorkflow && (
+        <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-sm border border-emerald-800/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 flex items-center justify-center shrink-0">
+              <Compass className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/30 text-emerald-200 px-2 py-0.5 rounded-md">
+                  Nouveau Guide Opérationnel
+                </span>
+                <span className="text-xs text-emerald-200/80">Cycle complet en 7 étapes & fiches rôles</span>
+              </div>
+              <h3 className="text-sm sm:text-base font-black text-white mt-0.5">
+                Besoin d'aide pour utiliser l'application ? Découvrez le Workflow & Actions Métier
+              </h3>
+              <p className="text-xs text-emerald-100/80 mt-0.5 max-w-2xl">
+                Du découpage parcellaire à la rémunération des membres (RG-010), en passant par le registre vétérinaire (12 pages) et la gestion des silos.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onOpenWorkflow}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition-all shrink-0 self-start md:self-center"
+          >
+            <span>Ouvrir le Workflow</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* ROW 1: Production Chart, Activités Donut, Hero Image Card */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">

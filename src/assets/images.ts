@@ -6,5 +6,6 @@ import cropsImg from './images/crops_farm_card_1788862302162.jpg';
 export const APP_IMAGES = {
   heroBanner: bannerImg,
   cowsHerd: cowsImg,
+  elevageCheptel: cowsImg,
   cropsCard: cropsImg,
 };

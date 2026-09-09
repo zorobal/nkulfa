@@ -1,5 +1,6 @@
 export type NavigationTab = 
   | 'accueil'
+  | 'campagnes'
   | 'terrains_parcelles'
   | 'agriculture'
   | 'suivi_cultural'
@@ -12,7 +13,9 @@ export type NavigationTab =
   | 'commercialisation'
   | 'finances'
   | 'membres'
-  | 'kpi_analyses';
+  | 'kpi_analyses'
+  | 'parametres'
+  | 'workflow';
 
 export type UserRole = 
   | 'super_admin'
@@ -24,6 +27,76 @@ export type UserRole =
   | 'commercial'
   | 'comptable'
   | 'cooperateur';
+
+export interface CrudPermissions {
+  create: boolean;
+  read: boolean;
+  update: boolean;
+  delete: boolean;
+}
+
+export interface SubModulePermission {
+  key: string;
+  nom: string;
+  description?: string;
+  hasAccess: boolean;
+  crud: CrudPermissions;
+}
+
+export interface ModulePermission {
+  key: NavigationTab;
+  nom: string;
+  category?: 'direction' | 'vegetal' | 'animal' | 'logistique' | 'finance' | 'systeme';
+  description?: string;
+  hasAccess: boolean;
+  crud: CrudPermissions;
+  subModules: Record<string, SubModulePermission>;
+}
+
+export interface UserPermissions {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canValidateFinances: boolean;
+  canExportData: boolean;
+  modulesAutorises: string[];
+  /** Fine-grained hierarchical permissions per module and sub-module with CRUD */
+  modules?: Record<string, ModulePermission>;
+}
+
+export interface AppUser {
+  id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  role: UserRole;
+  fonction: string;
+  telephone: string;
+  statut: 'Actif' | 'Suspendu' | 'Invité';
+  dernierAcces: string;
+  permissions: UserPermissions;
+}
+
+export interface CooperativeConfig {
+  nom: string;
+  sigle: string;
+  formeJuridique: string;
+  numeroAgrement: string;
+  registreOHADA: string;
+  anneeCreation: number;
+  siegeSocial: string;
+  boitePostale: string;
+  telephone: string;
+  email: string;
+  devise: string;
+  tauxRistourneMembresPct: number;
+  seuilAlerteMortalitePct: number;
+  seuilAlerteStockMinKg: number;
+  campagneActive: string;
+  responsableGeneral: string;
+  veterinaireChef: string;
+  agronomeChef: string;
+}
 
 export interface Membre {
   id: string;
@@ -45,27 +118,53 @@ export interface Membre {
   cotisationsAJour: boolean;
 }
 
+export interface CultureCohabitante {
+  id: string;
+  parcelleId: string;
+  especeNom: string;
+  variete: string;
+  superficieHa: number;
+  typeAssociation: 'Culture Principale' | 'Culture Associée / Intercalaire' | 'Plante Couvrante / Fixatrice' | 'Bordure Agroforestière';
+  dateSemis: string;
+  dateRecoltePrevue?: string;
+  rendementEstimeTonnesHa: number;
+  statut: 'Semis' | 'Croissance' | 'Floraison' | 'Récolte imminente' | 'Récolté';
+  observations?: string;
+}
+
 export interface Terrain {
   id: string;
   code: string;
   nom: string;
   proprietaireId: string;
+  proprietaireNom?: string;
   commune: string;
   superficieHa: number;
   coordonnees: { lat: number; lng: number };
   statutFoncier: string;
+  titreFoncier?: string;
+  dateAcquisition?: string;
+  statutJuridique?: string;
+  parcellesIds?: string[];
 }
 
 export interface Parcelle {
   id: string;
   code: string;
   terrainId: string;
+  nom?: string;
   superficieHa: number;
   typeActivite: 'Agriculture' | 'Élevage' | 'Mixte';
   typeSol: string;
   irrigation: boolean;
   coordonnees: { lat: number; lng: number };
   statut: 'En exploitation' | 'Jachère' | 'Préparation';
+  zone?: string;
+  responsable?: string;
+  culturesCohabitantes?: CultureCohabitante[];
+  superficieElevageHa?: number;
+  elevageLotCode?: string;
+  elevageEspeceNom?: string;
 }
 
 export interface Espece {
@@ -182,9 +281,15 @@ export interface Culture {
   prixVenteIndicatifKgFCFA: number;
 }
 
+export type TypeCampagne = 'Végétale' | 'Animale' | 'Agro-pastorale Mixte';
+export type UsageEspaceCampagne = 'Exclusif Culture' | 'Exclusif Élevage' | 'Rotation Pâturage Résidus' | 'Coexistence Spatiale';
+
 export interface CampagneAgricole {
   id: string;
   code: string;
+  nom?: string;
+  typeCampagne?: TypeCampagne; // Végétale, Animale, Agro-pastorale Mixte
+  filiere?: string; // ex: 'Maïs & Soja', 'Aviculture Chair', 'Porciculture', 'Embouche Bovine', 'Polyculture-Élevage'
   saison: string;
   annee: number;
   dateDebut: string;
@@ -193,6 +298,22 @@ export interface CampagneAgricole {
   objectifSuperficieHa: number;
   objectifProductionTonnes: number;
   productionReelleTonnes: number;
+  // Spécifique volet animalier
+  objectifEffectifAnimaux?: number;
+  effectifReelAnimaux?: number;
+  // Bilan financier
+  budgetPrevisionnelFCFA?: number;
+  depensesReellesFCFA?: number;
+  recettesReellesFCFA?: number;
+  margeNetteFCFA?: number;
+  // Affectation spatiale & parcelles
+  parcellesCodes?: string[];
+  usageEspace?: UsageEspaceCampagne;
+  // Procédure de clôture
+  dateCloture?: string;
+  motifCloture?: string;
+  observationsBilan?: string;
+  validePar?: string;
 }
 
 export interface SuiviParcelleCulture {
