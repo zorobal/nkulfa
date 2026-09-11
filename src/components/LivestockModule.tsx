@@ -457,7 +457,7 @@ export const LivestockModule: React.FC<LivestockModuleProps> = ({ initialSubTab 
                 <div className="text-right sm:self-center shrink-0">
                   <span className="text-xs text-stone-500 block">Portée / Survivants</span>
                   <span className="text-sm font-black text-emerald-700">
-                    {rep.petitsNés} nés ({rep.survivants} survivants)
+                    {rep.petitsNes ?? rep.petitsNés} nés ({rep.survivants} survivants)
                   </span>
                 </div>
               </div>

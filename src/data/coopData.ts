@@ -743,6 +743,7 @@ export const REPRODUCTION_DATA: ReproductionSuivi[] = [
     dateSaillie: '2025-11-04',
     dateMiseBasPrevue: '2026-08-12',
     dateMiseBasReelle: '2026-08-10',
+    petitsNes: 1,
     petitsNés: 1,
     survivants: 1,
     mortaliteJeunes: 0,
@@ -757,6 +758,7 @@ export const REPRODUCTION_DATA: ReproductionSuivi[] = [
     dateSaillie: '2026-04-18',
     dateMiseBasPrevue: '2026-08-10',
     dateMiseBasReelle: '2026-08-11',
+    petitsNes: 11,
     petitsNés: 11,
     survivants: 10,
     mortaliteJeunes: 1,
@@ -771,6 +773,7 @@ export const REPRODUCTION_DATA: ReproductionSuivi[] = [
     dateSaillie: '2026-04-01',
     dateMiseBasPrevue: '2026-09-01',
     dateMiseBasReelle: '2026-09-02',
+    petitsNes: 2,
     petitsNés: 2,
     survivants: 2,
     mortaliteJeunes: 0,
@@ -784,6 +787,7 @@ export const REPRODUCTION_DATA: ReproductionSuivi[] = [
     maleReproducteurRef: 'GOUD-M004 (Sultan)',
     dateSaillie: '2026-01-20',
     dateMiseBasPrevue: '2026-10-28',
+    petitsNes: 0,
     petitsNés: 0,
     survivants: 0,
     mortaliteJeunes: 0,
@@ -1234,6 +1238,7 @@ export const COLLECTES_DATA: Collecte[] = [
     montantDejaPayeFCFA: 10350000,
     resteAPayerFCFA: 0,
     pointCollecte: 'Centre d’Agrégation Obala',
+    lotTracabilite: 'NKF-MAIS-2026-00025',
     lotTraçabilite: 'NKF-MAIS-2026-00025',
   },
   {
@@ -1252,6 +1257,7 @@ export const COLLECTES_DATA: Collecte[] = [
     montantDejaPayeFCFA: 4000000,
     resteAPayerFCFA: 2120000,
     pointCollecte: 'Magasin Central Soa',
+    lotTracabilite: 'NKF-SOJA-2026-00014',
     lotTraçabilite: 'NKF-SOJA-2026-00014',
   },
   {
@@ -1270,6 +1276,7 @@ export const COLLECTES_DATA: Collecte[] = [
     montantDejaPayeFCFA: 2752000,
     resteAPayerFCFA: 0,
     pointCollecte: 'Abattoir Coopératif Mbalmayo',
+    lotTracabilite: 'NKF-VOL-2026-00008',
     lotTraçabilite: 'NKF-VOL-2026-00008',
   },
   {
@@ -1288,6 +1295,7 @@ export const COLLECTES_DATA: Collecte[] = [
     montantDejaPayeFCFA: 8000000,
     resteAPayerFCFA: 5640000,
     pointCollecte: 'Silo Bafia Mbam',
+    lotTracabilite: 'NKF-MAIS-2026-00026',
     lotTraçabilite: 'NKF-MAIS-2026-00026',
   },
   {
@@ -1306,6 +1314,7 @@ export const COLLECTES_DATA: Collecte[] = [
     montantDejaPayeFCFA: 0,
     resteAPayerFCFA: 5320000,
     pointCollecte: 'Parc à bétail Sa’a',
+    lotTracabilite: 'NKF-BOV-2026-00012',
     lotTraçabilite: 'NKF-BOV-2026-00012',
   },
 ];

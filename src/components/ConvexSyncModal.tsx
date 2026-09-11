@@ -11,9 +11,12 @@ import {
   ShieldCheck,
   Activity,
   X,
+  Download,
+  Terminal,
+  HelpCircle,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { ConvexConnectionTest } from '../services/convexService';
+import { ConvexConnectionTest, convexService } from '../services/convexService';
 
 interface ConvexSyncModalProps {
   isOpen: boolean;
@@ -33,12 +36,19 @@ export const ConvexSyncModal: React.FC<ConvexSyncModalProps> = ({ isOpen, onClos
     collectes,
     users,
     campagnes,
+    config,
+    interventions,
+    elevages,
+    parcelles,
+    terrains,
+    activeCampagneCode,
   } = useApp();
 
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<ConvexConnectionTest | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<{ success: boolean; message: string } | null>(null);
+  const [showDeployGuide, setShowDeployGuide] = useState(true);
 
   if (!isOpen) return null;
 
@@ -80,6 +90,21 @@ export const ConvexSyncModal: React.FC<ConvexSyncModalProps> = ({ isOpen, onClos
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const handleDownloadJsonl = () => {
+    convexService.downloadJsonl({
+      users,
+      membres,
+      config,
+      interventions,
+      elevages,
+      parcelles,
+      terrains,
+      collectes,
+      campagnes,
+      activeCampagneCode,
+    });
   };
 
   const formatLastSync = (ts: number | null) => {
@@ -296,6 +321,135 @@ export const ConvexSyncModal: React.FC<ConvexSyncModalProps> = ({ isOpen, onClos
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
               <span>Recharger Convex</span>
             </button>
+          </div>
+
+          {/* WHY DATA IS NOT YET IN CONVEX & SOLUTIONS */}
+          <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-extrabold text-amber-950 flex items-center gap-1.5">
+                <HelpCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                <span>Pourquoi vos données ne s'affichent pas encore sur Convex ?</span>
+              </span>
+              <button
+                onClick={() => setShowDeployGuide(!showDeployGuide)}
+                className="text-[10px] text-amber-800 underline font-semibold cursor-pointer"
+              >
+                {showDeployGuide ? 'Réduire' : 'Afficher la solution'}
+              </button>
+            </div>
+
+            {showDeployGuide && (
+              <div className="space-y-2.5 text-[11px] text-slate-700 leading-relaxed">
+                <p>
+                  Votre serveur Convex est accessible, mais Convex renvoie pour l’instant :
+                  <code className="block mt-1 p-1.5 rounded-lg bg-amber-100/70 font-mono text-[10px] text-amber-900 border border-amber-200">
+                    Could not find public function for 'appData:saveState'
+                  </code>
+                  Tant que les fonctions du dossier <code className="font-mono font-bold">/convex</code> ne sont pas publiées sur votre cluster, Convex bloque l'enregistrement automatique des tables.
+                </p>
+
+                <div className="p-3 bg-white rounded-xl border border-emerald-200 space-y-2.5">
+                  <div className="font-bold text-slate-900 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Download className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Fichiers d'import Convex JSONL (par table)</span>
+                    </div>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                      Prêts au téléchargement
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Sur le <strong>Convex Dashboard &gt; Data</strong>, vous pouvez importer vos données dans la table centrale <code>cooperativeState</code> ou directement dans les tables individuelles :
+                  </p>
+
+                  <div className="space-y-1.5">
+                    <button
+                      onClick={handleDownloadJsonl}
+                      className="w-full px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors text-xs"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Télécharger cooperativeState.jsonl (Base complète)</span>
+                    </button>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1">
+                      <a
+                        href="/convex-exports/membres.jsonl"
+                        download="membres.jsonl"
+                        className="p-1.5 rounded-lg bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-800 font-bold flex items-center justify-center gap-1 text-[11px] transition-colors"
+                      >
+                        <Download className="w-3 h-3 text-emerald-600" />
+                        <span>membres.jsonl</span>
+                      </a>
+                      <a
+                        href="/convex-exports/collectes.jsonl"
+                        download="collectes.jsonl"
+                        className="p-1.5 rounded-lg bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-800 font-bold flex items-center justify-center gap-1 text-[11px] transition-colors"
+                      >
+                        <Download className="w-3 h-3 text-emerald-600" />
+                        <span>collectes.jsonl</span>
+                      </a>
+                      <a
+                        href="/convex-exports/users.jsonl"
+                        download="users.jsonl"
+                        className="p-1.5 rounded-lg bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-800 font-bold flex items-center justify-center gap-1 text-[11px] transition-colors"
+                      >
+                        <Download className="w-3 h-3 text-emerald-600" />
+                        <span>users.jsonl</span>
+                      </a>
+                      <a
+                        href="/convex-exports/parcelles.jsonl"
+                        download="parcelles.jsonl"
+                        className="p-1.5 rounded-lg bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-800 font-bold flex items-center justify-center gap-1 text-[11px] transition-colors"
+                      >
+                        <Download className="w-3 h-3 text-emerald-600" />
+                        <span>parcelles.jsonl</span>
+                      </a>
+                      <a
+                        href="/convex-exports/terrains.jsonl"
+                        download="terrains.jsonl"
+                        className="p-1.5 rounded-lg bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-800 font-bold flex items-center justify-center gap-1 text-[11px] transition-colors"
+                      >
+                        <Download className="w-3 h-3 text-emerald-600" />
+                        <span>terrains.jsonl</span>
+                      </a>
+                      <a
+                        href="/convex-exports/campagnes.jsonl"
+                        download="campagnes.jsonl"
+                        className="p-1.5 rounded-lg bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-800 font-bold flex items-center justify-center gap-1 text-[11px] transition-colors"
+                      >
+                        <Download className="w-3 h-3 text-emerald-600" />
+                        <span>campagnes.jsonl</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-slate-500 italic">
+                    Dans <a href="https://dashboard.convex.dev" target="_blank" rel="noreferrer" className="text-emerald-700 underline font-bold">dashboard.convex.dev</a> &gt; <strong>Data</strong>, sélectionnez la table souhaitée, cliquez sur <strong>"Import"</strong> et choisissez le fichier correspondant.
+                  </p>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-amber-200 space-y-2">
+                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <Terminal className="w-3.5 h-3.5 text-blue-700" />
+                    <span>Solution 2 (Automatique avec Vercel) : Clé de Déploiement</span>
+                  </div>
+                  <ol className="list-decimal pl-4 space-y-1 text-[11px] text-slate-600">
+                    <li>
+                      Sur <a href="https://dashboard.convex.dev" target="_blank" rel="noreferrer" className="text-emerald-700 underline font-bold">dashboard.convex.dev</a> &gt; <strong>Settings</strong> &gt; <strong>Deploy Keys</strong> &gt; Copiez votre clé (commence par <code className="font-mono">prod:...</code>).
+                    </li>
+                    <li>
+                      Sur votre projet <strong>Vercel</strong> &gt; <strong>Settings</strong> &gt; <strong>Environment Variables</strong> &gt; Ajoutez la variable <code className="font-mono font-bold">CONVEX_DEPLOY_KEY</code> avec cette valeur.
+                    </li>
+                    <li>
+                      Sur Vercel &gt; <strong>Settings</strong> &gt; <strong>General</strong> &gt; <strong>Build Command</strong> &gt; remplacez par : <code className="font-mono px-1 py-0.5 rounded bg-slate-100 font-bold">npx convex deploy && vite build</code>.
+                    </li>
+                  </ol>
+                  <p className="text-[10px] text-slate-500">
+                    À chaque déploiement sur Vercel, Convex recevra automatiquement les fonctions backend et toutes les données s’y enregistreront en direct !
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

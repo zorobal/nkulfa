@@ -37,10 +37,12 @@ export type ConvexSyncStatus = 'connected' | 'connecting' | 'syncing' | 'offline
 
 // Configuration
 export const CONVEX_CLOUD_URL =
-  (import.meta.env.VITE_CONVEX_URL as string) || 'https://giant-bison-526.eu-west-1.convex.cloud';
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_CONVEX_URL) ||
+  'https://giant-bison-526.eu-west-1.convex.cloud';
 
 export const CONVEX_SITE_URL =
-  (import.meta.env.VITE_CONVEX_SITE_URL as string) || 'https://giant-bison-526.eu-west-1.convex.site';
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_CONVEX_SITE_URL) ||
+  'https://giant-bison-526.eu-west-1.convex.site';
 
 // Status listeners
 type StatusListener = (status: ConvexSyncStatus, info?: { lastSync?: number; error?: string }) => void;
@@ -55,6 +57,24 @@ function setStatus(status: ConvexSyncStatus, err?: string) {
   if (err) lastError = err;
   if (status === 'connected') lastError = null;
   listeners.forEach((cb) => cb(status, { lastSync: lastSyncTimestamp || undefined, error: lastError || undefined }));
+}
+
+/**
+ * Convex strictly enforces non-control ASCII characters in document property keys.
+ * This helper normalizes and sanitizes all keys recursively to ensure mutations never fail.
+ */
+export function sanitizeForConvex(obj: any): any {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeForConvex);
+  const clean: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const asciiKey = key
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9_]/g, '_');
+    clean[asciiKey] = sanitizeForConvex(value);
+  }
+  return clean;
 }
 
 export const convexService = {
@@ -197,7 +217,7 @@ export const convexService = {
   async saveStateToConvex(payload: any, updatedBy?: string): Promise<ConvexSyncResult> {
     setStatus('syncing');
 
-    const cleanPayload = {
+    const cleanPayload = sanitizeForConvex({
       key: 'main',
       users: payload.users,
       membres: payload.membres,
@@ -210,7 +230,7 @@ export const convexService = {
       campagnes: payload.campagnes,
       activeCampagneCode: payload.activeCampagneCode,
       updatedBy: updatedBy || 'user',
-    };
+    });
 
     // 1. Try Convex Cloud mutation: /api/mutation
     try {
@@ -242,6 +262,20 @@ export const convexService = {
             message: 'Sauvegardé avec succès dans Convex Cloud',
             timestamp: lastSyncTimestamp,
             syncVersion: json.value?.syncVersion,
+          };
+        } else if (json.errorMessage?.includes('Could not find public function')) {
+          console.warn('Convex function not yet deployed to cloud:', json.errorMessage);
+          setStatus(
+            'error',
+            "Fonctions Convex non déployées : lancez 'npx convex deploy' ou configurez CONVEX_DEPLOY_KEY sur Vercel"
+          );
+          return {
+            success: false,
+            source: 'cache',
+            message:
+              "Le cluster Convex est joignable mais les fonctions backend ne sont pas encore déployées. Lancez 'npx convex deploy' ou importez le fichier JSONL.",
+            timestamp: Date.now(),
+            error: 'functions_not_deployed',
           };
         }
       }
@@ -317,9 +351,11 @@ export const convexService = {
 
       if (res.ok && json?.status === 'success') {
         cloudOk = true;
-        cloudStatusText = `En ligne (${cloudLatencyMs}ms) • Fonctions déployées`;
+        cloudStatusText = `En ligne (${cloudLatencyMs}ms) • Fonctions backend déployées`;
+      } else if (json?.errorMessage?.includes('Could not find public function')) {
+        cloudOk = true;
+        cloudStatusText = `Serveur joignable (${cloudLatencyMs}ms) • Fonctions en attente de déploiement ('npx convex deploy')`;
       } else if (res.status === 200 || res.status === 404) {
-        // Server is reachable even if functions are pending deployment
         cloudOk = true;
         cloudStatusText = `En ligne (${cloudLatencyMs}ms) • Serveur actif`;
       } else {
@@ -371,4 +407,57 @@ export const convexService = {
         : 'Impossible de contacter les serveurs Convex. Vérifiez votre connexion Internet.',
     };
   },
+
+  /**
+   * Helper to download the complete cooperative database as a Convex-compatible JSONL file.
+   * This allows manual import into the Convex Dashboard (Data > Import) in 1 click!
+   */
+  downloadJsonl(data: any) {
+    const record = sanitizeForConvex({
+      key: 'main',
+      users: data.users || [],
+      membres: data.membres || [],
+      config: data.config || {},
+      interventions: data.interventions || [],
+      elevages: data.elevages || [],
+      parcelles: data.parcelles || [],
+      terrains: data.terrains || [],
+      collectes: data.collectes || [],
+      campagnes: data.campagnes || [],
+      activeCampagneCode: data.activeCampagneCode || 'CAMP-2026-A',
+      updatedAt: Date.now(),
+      syncVersion: 1,
+    });
+
+    const jsonlContent = JSON.stringify(record) + '\n';
+    const blob = new Blob([jsonlContent], { type: 'application/x-jsonlines;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `cooperativeState.jsonl`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  },
+
+  /**
+   * Helper to export data specifically formatted for individual granular tables in Convex:
+   * 'membres' | 'collectes' | 'users' | 'parcelles' | 'terrains' | 'campagnes'
+   */
+  downloadTableJsonl(tableName: string, items: any[]) {
+    if (!Array.isArray(items) || items.length === 0) return;
+    const sanitizedItems = sanitizeForConvex(items);
+    const jsonlContent = sanitizedItems.map((item: any) => JSON.stringify(item)).join('\n') + '\n';
+    const blob = new Blob([jsonlContent], { type: 'application/x-jsonlines;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${tableName}.jsonl`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  },
 };
+

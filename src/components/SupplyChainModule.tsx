@@ -75,6 +75,7 @@ export const SupplyChainModule: React.FC<SupplyChainModuleProps> = ({ initialTab
       resteAPayerFCFA: reste,
       humiditePct: Number(collecteForm.humiditePct),
       qualiteGrade: collecteForm.qualiteGrade,
+      lotTracabilite: `LOT-2026-${randomSuffix}`,
       lotTraçabilite: `LOT-2026-${randomSuffix}`,
       statutPaiement: collecteForm.statutPaiement,
     });
@@ -100,7 +101,7 @@ export const SupplyChainModule: React.FC<SupplyChainModuleProps> = ({ initialTab
       col.membreNom.toLowerCase().includes(searchQuery.toLowerCase()) ||
       col.codeBordereau.toLowerCase().includes(searchQuery.toLowerCase()) ||
       col.produit.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      col.lotTraçabilite.toLowerCase().includes(searchQuery.toLowerCase())
+      (col.lotTracabilite || col.lotTraçabilite || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
   });
 
@@ -304,7 +305,7 @@ export const SupplyChainModule: React.FC<SupplyChainModuleProps> = ({ initialTab
                       </td>
                       <td className="py-3.5 px-4">
                         <span className="font-mono text-[11px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded">
-                          {col.lotTraçabilite}
+                          {col.lotTracabilite || col.lotTraçabilite}
                         </span>
                       </td>
                       <td className="py-3.5 px-4">

@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { UserRole, AppUser } from '../../types';
 import { calculatePermissionStats } from '../../data/modulesRegistry';
 import { UserPermissionsModal } from '../UserPermissionsModal';
+import { convexService } from '../../services/convexService';
 import {
   Settings,
   Building2,
@@ -54,9 +55,11 @@ export const ParametresModule: React.FC = () => {
     interventions,
     elevages,
     parcelles,
+    terrains,
     membres,
     collectes,
     campagnes,
+    activeCampagneCode,
     convexStatus,
     lastConvexSync,
     convexCloudUrl,
@@ -74,6 +77,21 @@ export const ParametresModule: React.FC = () => {
   const [convexTestResult, setConvexTestResult] = useState<any>(null);
   const [isConvexSyncing, setIsConvexSyncing] = useState(false);
   const [convexSyncFeedback, setConvexSyncFeedback] = useState<string | null>(null);
+
+  const handleDownloadConvexJsonl = () => {
+    convexService.downloadJsonl({
+      users,
+      membres,
+      config,
+      interventions,
+      elevages,
+      parcelles,
+      terrains,
+      collectes,
+      campagnes,
+      activeCampagneCode,
+    });
+  };
 
   const handleTestConvex = async () => {
     setIsTestingConvex(true);
@@ -1138,6 +1156,74 @@ export const ParametresModule: React.FC = () => {
                 <RefreshCw className={`w-3.5 h-3.5 ${isConvexSyncing ? 'animate-spin' : ''}`} />
                 <span>Recharger depuis Convex (Entrant)</span>
               </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadConvexJsonl}
+                className="px-4 py-2 rounded-xl bg-emerald-700/80 hover:bg-emerald-600 text-white font-bold text-xs flex items-center gap-2 transition-all cursor-pointer border border-emerald-500/40"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-200" />
+                <span>Exporter cooperativeState (.jsonl)</span>
+              </button>
+            </div>
+
+            <div className="p-3 bg-white/10 rounded-2xl border border-white/15 text-xs text-slate-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-white flex items-center gap-1.5">
+                  <Download className="w-4 h-4 text-emerald-300" />
+                  Exports JSONL individuels pour chaque table Convex :
+                </span>
+                <span className="text-[10px] bg-emerald-500/30 text-emerald-200 px-2 py-0.5 rounded-full border border-emerald-400/30">
+                  Prêts à l'import
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <a
+                  href="/convex-exports/membres.jsonl"
+                  download="membres.jsonl"
+                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-emerald-200 hover:text-white font-mono text-[11px] border border-white/10 transition-colors"
+                >
+                  membres.jsonl
+                </a>
+                <a
+                  href="/convex-exports/collectes.jsonl"
+                  download="collectes.jsonl"
+                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-emerald-200 hover:text-white font-mono text-[11px] border border-white/10 transition-colors"
+                >
+                  collectes.jsonl
+                </a>
+                <a
+                  href="/convex-exports/users.jsonl"
+                  download="users.jsonl"
+                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-emerald-200 hover:text-white font-mono text-[11px] border border-white/10 transition-colors"
+                >
+                  users.jsonl
+                </a>
+                <a
+                  href="/convex-exports/parcelles.jsonl"
+                  download="parcelles.jsonl"
+                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-emerald-200 hover:text-white font-mono text-[11px] border border-white/10 transition-colors"
+                >
+                  parcelles.jsonl
+                </a>
+                <a
+                  href="/convex-exports/terrains.jsonl"
+                  download="terrains.jsonl"
+                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-emerald-200 hover:text-white font-mono text-[11px] border border-white/10 transition-colors"
+                >
+                  terrains.jsonl
+                </a>
+                <a
+                  href="/convex-exports/campagnes.jsonl"
+                  download="campagnes.jsonl"
+                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-emerald-200 hover:text-white font-mono text-[11px] border border-white/10 transition-colors"
+                >
+                  campagnes.jsonl
+                </a>
+              </div>
+              <p className="text-[11px] leading-relaxed text-slate-300">
+                La table centrale <code className="text-emerald-300 font-mono">cooperativeState</code> sur Convex contient déjà l'intégralité des données en direct. Pour alimenter également les tables individuelles dans le dashboard Convex, cliquez sur une table dans <a href="https://dashboard.convex.dev" target="_blank" rel="noreferrer" className="text-emerald-300 underline font-semibold">dashboard.convex.dev</a> &gt; <strong>Data</strong> &gt; <strong>Import</strong> et sélectionnez son fichier JSONL.
+              </p>
             </div>
           </div>
 

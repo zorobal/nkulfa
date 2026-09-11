@@ -35,7 +35,7 @@ export const getState = query({
   },
 });
 
-// Save or merge full state of the cooperative
+// Save or merge full state of the cooperative & sync individual tables
 export const saveState = mutation({
   args: {
     key: v.optional(v.string()),
@@ -83,6 +83,110 @@ export const saveState = mutation({
       await ctx.db.insert("cooperativeState", payload);
     }
 
+    // Synchronize individual tables if arrays were provided
+    // 1. Membres
+    if (Array.isArray(args.membres) && args.membres.length > 0) {
+      for (const m of args.membres) {
+        if (!m.id) continue;
+        const found = await ctx.db
+          .query("membres")
+          .withIndex("by_memberId", (q) => q.eq("id", m.id))
+          .first();
+        const row = {
+          id: m.id,
+          codeMembre: m.codeMembre || m.code || m.id,
+          nom: m.nom || "",
+          prenom: m.prenom || "",
+          genre: m.genre || "M",
+          telephone: m.telephone,
+          email: m.email,
+          commune: m.commune || "Obala",
+          ville: m.ville,
+          pays: m.pays || "Cameroun",
+          statut: m.statut || "Actif",
+          partSociales: typeof m.partSociales === "number" ? m.partSociales : 1,
+          dateAdhesion: m.dateAdhesion || "2021-01-01",
+          activitePrincipale: m.activitePrincipale || "Agro-pastoral",
+          domaineActivite: m.domaineActivite,
+          specialite: m.specialite,
+          sections: Array.isArray(m.sections) ? m.sections : [],
+          detailsSpecifiques: m.detailsSpecifiques,
+        };
+        if (found) {
+          await ctx.db.patch(found._id, row);
+        } else {
+          await ctx.db.insert("membres", row);
+        }
+      }
+    }
+
+    // 2. Users
+    if (Array.isArray(args.users) && args.users.length > 0) {
+      for (const u of args.users) {
+        if (!u.id) continue;
+        const found = await ctx.db
+          .query("users")
+          .withIndex("by_userId", (q) => q.eq("id", u.id))
+          .first();
+        const row = {
+          id: u.id,
+          login: u.login || u.id,
+          password: u.password,
+          nom: u.nom || "",
+          prenom: u.prenom || "",
+          email: u.email,
+          telephone: u.telephone,
+          role: u.role || "cooperateur",
+          fonction: u.fonction,
+          dateAdhesion: u.dateAdhesion,
+          statut: u.statut || "Actif",
+          dernierAcces: u.dernierAcces,
+          permissions: u.permissions,
+        };
+        if (found) {
+          await ctx.db.patch(found._id, row);
+        } else {
+          await ctx.db.insert("users", row);
+        }
+      }
+    }
+
+    // 3. Collectes
+    if (Array.isArray(args.collectes) && args.collectes.length > 0) {
+      for (const c of args.collectes) {
+        if (!c.id) continue;
+        const found = await ctx.db
+          .query("collectes")
+          .filter((q) => q.eq(q.field("id"), c.id))
+          .first();
+        const row = {
+          id: c.id,
+          codeCollecte: c.codeCollecte || c.id,
+          date: c.date || "2026-01-01",
+          campagneCode: c.campagneCode || "CAMP-2026-A",
+          membreId: c.membreId || "",
+          produit: c.produit || "Maïs",
+          variete: c.variete,
+          quantite: typeof c.quantite === "number" ? c.quantite : 0,
+          unite: c.unite || "kg",
+          prixUnitaire: typeof c.prixUnitaire === "number" ? c.prixUnitaire : 0,
+          montantTotal: typeof c.montantTotal === "number" ? c.montantTotal : 0,
+          statutPaiement: c.statutPaiement || "Payé",
+          lieuStockage: c.lieuStockage,
+          qualite: c.qualite || "Grade A",
+          tauxHumidite: c.tauxHumidite,
+          numeroRecu: c.numeroRecu,
+          agentCollecteur: c.agentCollecteur,
+          lotTracabilite: c.lotTracabilite || c.lotTraçabilite,
+        };
+        if (found) {
+          await ctx.db.patch(found._id, row);
+        } else {
+          await ctx.db.insert("collectes", row);
+        }
+      }
+    }
+
     // Log the synchronization event
     await ctx.db.insert("auditLogs", {
       timestamp: now,
@@ -100,8 +204,30 @@ export const saveState = mutation({
       success: true,
       updatedAt: now,
       syncVersion: payload.syncVersion,
-      message: "Synchronisation Convex Cloud réussie",
+      message: "Synchronisation Convex Cloud et tables individuelles réussie",
     };
+  },
+});
+
+// Direct queries for individual tables
+export const getMembres = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("membres").collect();
+  },
+});
+
+export const getCollectes = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("collectes").collect();
+  },
+});
+
+export const getUsers = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("users").collect();
   },
 });
 
@@ -113,7 +239,7 @@ export const ping = query({
       status: "ok",
       serverTime: Date.now(),
       cloud: "Convex Cloud EU-West-1 (giant-bison-526)",
-      version: "2026.1",
+      version: "2026.2",
     };
   },
 });

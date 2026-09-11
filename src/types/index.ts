@@ -260,7 +260,8 @@ export interface ReproductionSuivi {
   dateSaillie: string;
   dateMiseBasPrevue: string;
   dateMiseBasReelle?: string;
-  petitsNés: number;
+  petitsNes: number;
+  petitsNés?: number;
   survivants: number;
   mortaliteJeunes: number;
   statut: 'En gestation' | 'Mise bas réussie' | 'Avortement';
@@ -359,7 +360,8 @@ export interface Collecte {
   montantDejaPayeFCFA: number;
   resteAPayerFCFA: number;
   pointCollecte: string;
-  lotTraçabilite: string;
+  lotTracabilite: string;
+  lotTraçabilite?: string;
 }
 
 export interface MagasinStock {
