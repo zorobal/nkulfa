@@ -66,6 +66,8 @@ export interface UserPermissions {
 
 export interface AppUser {
   id: string;
+  login: string; // Nom d'utilisateur / identifiant de connexion (pas d'adresse email)
+  password?: string; // Mot de passe de session
   nom: string;
   prenom: string;
   email: string;
@@ -105,17 +107,23 @@ export interface Membre {
   prenom: string;
   sexe: 'M' | 'F';
   telephone: string;
-  village: string;
+  village?: string;
   commune: string;
-  region: string;
+  ville: string;
+  pays: string;
+  region?: string;
   dateAdhesion: string;
   statut: 'Actif' | 'Nouveau' | 'Inactif';
+  domaineActivite?: string;
   activitePrincipale: string;
+  specialite?: string;
   activiteSecondaire?: string;
-  superficieTotaleHa: number;
-  effectifCheptelTotal: number;
+  superficieTotaleHa?: number;
+  superficieExploiteeHa?: number;
+  effectifCheptelTotal?: number;
   partsSocialesFCFA: number;
-  cotisationsAJour: boolean;
+  cotisationAnnuelleFCFA?: number;
+  cotisationsAJour?: boolean;
 }
 
 export interface CultureCohabitante {

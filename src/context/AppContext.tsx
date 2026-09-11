@@ -28,10 +28,19 @@ import {
   checkUserSubModuleAccess,
   checkUserCrud,
 } from '../data/modulesRegistry';
+import {
+  convexService,
+  ConvexSyncStatus,
+  ConvexConnectionTest,
+  CONVEX_CLOUD_URL,
+  CONVEX_SITE_URL,
+} from '../services/convexService';
 
 const DEFAULT_USERS: AppUser[] = [
   {
     id: 'USR-001',
+    login: 'atangana',
+    password: 'coop2026',
     nom: 'ATANGANA',
     prenom: 'Jean-Marc',
     email: 'direction@coops-ca-nkul.cm',
@@ -52,6 +61,8 @@ const DEFAULT_USERS: AppUser[] = [
   },
   {
     id: 'USR-002',
+    login: 'mballa',
+    password: 'coop2026',
     nom: 'MBALLA',
     prenom: 'Suzanne',
     email: 'agronomie@coops-ca-nkul.cm',
@@ -72,6 +83,8 @@ const DEFAULT_USERS: AppUser[] = [
   },
   {
     id: 'USR-003',
+    login: 'etoundi',
+    password: 'coop2026',
     nom: 'ETOUNDI',
     prenom: 'Paulin',
     email: 'veterinaire@coops-ca-nkul.cm',
@@ -92,6 +105,8 @@ const DEFAULT_USERS: AppUser[] = [
   },
   {
     id: 'USR-004',
+    login: 'bikoula',
+    password: 'coop2026',
     nom: 'BIKOULA',
     prenom: 'Dieudonné',
     email: 'stocks@coops-ca-nkul.cm',
@@ -112,6 +127,8 @@ const DEFAULT_USERS: AppUser[] = [
   },
   {
     id: 'USR-005',
+    login: 'ngah',
+    password: 'coop2026',
     nom: 'NGAH',
     prenom: 'Chantal',
     email: 'finances@coops-ca-nkul.cm',
@@ -132,6 +149,8 @@ const DEFAULT_USERS: AppUser[] = [
   },
   {
     id: 'USR-006',
+    login: 'ondoa',
+    password: 'coop2026',
     nom: 'ONDOA',
     prenom: 'Samuel',
     email: 's.ondoa@cooperateurs.cm',
@@ -208,6 +227,13 @@ interface AppContextType {
   rouvrirCampagne: (id: string) => void;
   deleteCampagne: (id: string) => void;
 
+  // Session & Authentication
+  isAuthenticated: boolean;
+  login: (login: string, password: string) => { success: boolean; error?: string };
+  logout: () => void;
+  lockSession: () => void;
+  switchUserWithPassword: (userId: string, password: string) => { success: boolean; error?: string };
+
   // User Actions
   setCurrentUser: (user: AppUser) => void;
   switchUserById: (userId: string) => void;
@@ -260,6 +286,15 @@ interface AppContextType {
   can: (action: keyof CrudPermissions, moduleKey: NavigationTab, subModuleKey?: string) => boolean;
   canAccessModule: (moduleKey: NavigationTab) => boolean;
   canAccessSubModule: (moduleKey: NavigationTab, subModuleKey: string) => boolean;
+
+  // Convex Cloud Database Integration
+  convexStatus: ConvexSyncStatus;
+  lastConvexSync: number | null;
+  convexError: string | null;
+  convexCloudUrl: string;
+  convexSiteUrl: string;
+  syncWithConvex: (forcePush?: boolean) => Promise<{ success: boolean; message: string }>;
+  testConvexConnection: () => Promise<ConvexConnectionTest>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -273,19 +308,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        // Ensure users have fine-grained permissions populated
-        const loadedUsers = (parsed.users || DEFAULT_USERS).map((u: AppUser) => {
-          if (!u.permissions?.modules) {
-            return {
-              ...u,
-              permissions: {
-                ...u.permissions,
-                modules: getDefaultPermissionsForRole(u.role),
-              },
+        // Ensure users have fine-grained permissions populated, and have login & password
+        const loadedUsers = (parsed.users || DEFAULT_USERS).map((u: any) => {
+          const userObj = { ...u };
+          if (!userObj.login) {
+            userObj.login = (userObj.nom || 'user').toLowerCase().replace(/\s+/g, '');
+          }
+          if (!userObj.password) {
+            userObj.password = 'coop2026';
+          }
+          if (!userObj.permissions?.modules) {
+            userObj.permissions = {
+              ...userObj.permissions,
+              modules: getDefaultPermissionsForRole(userObj.role),
             };
           }
-          return u;
+          return userObj as AppUser;
         });
+
+        const loadedMembres = (parsed.membres || MEMBRES_DATA).map((m: Membre) => ({
+          ...m,
+          ville: m.ville || m.commune || 'Yaoundé',
+          pays: m.pays || 'Cameroun',
+          domaineActivite: m.domaineActivite || 'Agro-pastoral',
+          specialite: m.specialite || m.activitePrincipale,
+        }));
 
         return {
           users: loadedUsers,
@@ -295,7 +342,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           elevages: parsed.elevages || ELEVAGE_PARCELLES_DATA,
           parcelles: parsed.parcelles || PARCELLES_DATA,
           terrains: parsed.terrains || TERRAINS_DATA,
-          membres: parsed.membres || MEMBRES_DATA,
+          membres: loadedMembres,
           collectes: parsed.collectes || COLLECTES_DATA,
           campagnes: parsed.campagnes || CAMPAGNES_DATA,
           activeCampagneCode: parsed.activeCampagneCode || 'CAMP-2026-A',
@@ -335,26 +382,126 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [campagnes, setCampagnes] = useState<CampagneAgricole[]>(initial.campagnes);
   const [activeCampagneCode, setActiveCampagneCode] = useState<string>(initial.activeCampagneCode);
 
-  // Sync with LocalStorage
+  // Convex Cloud State & Real-time synchronization
+  const [convexStatus, setConvexStatus] = useState<ConvexSyncStatus>(convexService.getStatus());
+  const [lastConvexSync, setLastConvexSync] = useState<number | null>(convexService.getLastSync());
+  const [convexError, setConvexError] = useState<string | null>(convexService.getLastError());
+  const [isInitialLoadDone, setIsInitialLoadDone] = useState<boolean>(false);
+
+  // Subscribe to Convex status changes
   useEffect(() => {
+    return convexService.subscribe((status, info) => {
+      setConvexStatus(status);
+      if (info?.lastSync) setLastConvexSync(info.lastSync);
+      setConvexError(info?.error || null);
+    });
+  }, []);
+
+  // INCOMING REQUEST PRIORITY: Hydrate state from Convex on application boot
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydrateFromConvex = async () => {
+      try {
+        const { data, result } = await convexService.fetchStateFromConvex();
+        if (!isMounted) return;
+
+        if (data) {
+          // Convex has priority over local storage!
+          if (Array.isArray(data.users) && data.users.length > 0) {
+            setUsers(data.users);
+          }
+          if (Array.isArray(data.membres) && data.membres.length > 0) {
+            setMembres(data.membres);
+          }
+          if (data.config && typeof data.config === 'object' && Object.keys(data.config).length > 0) {
+            setConfig(data.config);
+          }
+          if (Array.isArray(data.interventions)) {
+            setInterventions(data.interventions);
+          }
+          if (Array.isArray(data.elevages)) {
+            setElevages(data.elevages);
+          }
+          if (Array.isArray(data.parcelles)) {
+            setParcelles(data.parcelles);
+          }
+          if (Array.isArray(data.terrains)) {
+            setTerrains(data.terrains);
+          }
+          if (Array.isArray(data.collectes)) {
+            setCollectes(data.collectes);
+          }
+          if (Array.isArray(data.campagnes)) {
+            setCampagnes(data.campagnes);
+          }
+          if (data.activeCampagneCode) {
+            setActiveCampagneCode(data.activeCampagneCode);
+          }
+        } else if (result.source === 'convex') {
+          // Connected to Convex, but table is empty: seed Convex with default cooperative dataset
+          await convexService.saveStateToConvex(
+            {
+              users: initial.users,
+              membres: initial.membres,
+              config: initial.config,
+              interventions: initial.interventions,
+              elevages: initial.elevages,
+              parcelles: initial.parcelles,
+              terrains: initial.terrains,
+              collectes: initial.collectes,
+              campagnes: initial.campagnes,
+              activeCampagneCode: initial.activeCampagneCode,
+            },
+            'initial_seed'
+          );
+        }
+      } catch (err) {
+        console.warn('Convex hydration notice:', err);
+      } finally {
+        if (isMounted) {
+          setIsInitialLoadDone(true);
+        }
+      }
+    };
+
+    hydrateFromConvex();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // OUTGOING REQUEST PRIORITY: Save changes to Convex first, then mirror to LocalStorage
+  useEffect(() => {
+    const dataToSave = {
+      users,
+      currentUserId: currentUser.id,
+      config,
+      interventions,
+      elevages,
+      parcelles,
+      terrains,
+      membres,
+      collectes,
+      campagnes,
+      activeCampagneCode,
+    };
+
+    // 1. Mirror to LocalStorage as offline fallback cache
     try {
-      const dataToSave = {
-        users,
-        currentUserId: currentUser.id,
-        config,
-        interventions,
-        elevages,
-        parcelles,
-        terrains,
-        membres,
-        collectes,
-        campagnes,
-        activeCampagneCode,
-      };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
     } catch {
       // Ignore quota errors
     }
+
+    // 2. Debounce push to Convex Cloud (Primary Database)
+    if (!isInitialLoadDone) return;
+
+    const timer = setTimeout(() => {
+      convexService.saveStateToConvex(dataToSave, currentUser.prenom || 'user');
+    }, 800);
+
+    return () => clearTimeout(timer);
   }, [
     users,
     currentUser,
@@ -367,9 +514,118 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     collectes,
     campagnes,
     activeCampagneCode,
+    isInitialLoadDone,
   ]);
 
-  // User Actions
+  // Manual Trigger: Force synchronization with Convex
+  const syncWithConvex = async (forcePush = false): Promise<{ success: boolean; message: string }> => {
+    if (forcePush) {
+      const dataToPush = {
+        users,
+        membres,
+        config,
+        interventions,
+        elevages,
+        parcelles,
+        terrains,
+        collectes,
+        campagnes,
+        activeCampagneCode,
+      };
+      const result = await convexService.saveStateToConvex(dataToPush, currentUser.prenom || 'admin');
+      return { success: result.success, message: result.message };
+    } else {
+      const { data, result } = await convexService.fetchStateFromConvex();
+      if (data) {
+        if (Array.isArray(data.users) && data.users.length > 0) setUsers(data.users);
+        if (Array.isArray(data.membres) && data.membres.length > 0) setMembres(data.membres);
+        if (data.config && Object.keys(data.config).length > 0) setConfig(data.config);
+        if (Array.isArray(data.collectes)) setCollectes(data.collectes);
+        if (Array.isArray(data.campagnes)) setCampagnes(data.campagnes);
+        if (Array.isArray(data.interventions)) setInterventions(data.interventions);
+        if (Array.isArray(data.elevages)) setElevages(data.elevages);
+        if (Array.isArray(data.parcelles)) setParcelles(data.parcelles);
+        if (Array.isArray(data.terrains)) setTerrains(data.terrains);
+        if (data.activeCampagneCode) setActiveCampagneCode(data.activeCampagneCode);
+      }
+      return { success: result.success, message: result.message };
+    }
+  };
+
+  const testConvexConnection = async (): Promise<ConvexConnectionTest> => {
+    return await convexService.testConnection();
+  };
+
+  // User Actions & Authentication Session State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return sessionStorage.getItem('coops_session_active') !== 'false';
+  });
+
+  const login = (loginInput: string, passwordInput: string): { success: boolean; error?: string } => {
+    const trimmedLogin = loginInput.trim().toLowerCase();
+    const found = users.find((u) => u.login.toLowerCase() === trimmedLogin);
+    if (!found) {
+      return {
+        success: false,
+        error: "Identifiant inconnu. Veuillez vérifier votre nom d'utilisateur (login).",
+      };
+    }
+    if (found.statut === 'Suspendu') {
+      return {
+        success: false,
+        error: "Ce compte utilisateur a été suspendu par l’administrateur.",
+      };
+    }
+    const expectedPassword = found.password || 'coop2026';
+    if (passwordInput !== expectedPassword) {
+      return { success: false, error: 'Mot de passe incorrect.' };
+    }
+
+    const now = new Date();
+    const dateStr = `Aujourd’hui à ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    updateUser(found.id, { dernierAcces: dateStr });
+    setCurrentUser({ ...found, dernierAcces: dateStr });
+    setIsAuthenticated(true);
+    sessionStorage.setItem('coops_session_active', 'true');
+    return { success: true };
+  };
+
+  const logout = () => {
+    setIsAuthenticated(false);
+    sessionStorage.setItem('coops_session_active', 'false');
+  };
+
+  const lockSession = () => {
+    setIsAuthenticated(false);
+    sessionStorage.setItem('coops_session_active', 'false');
+  };
+
+  const switchUserWithPassword = (
+    userId: string,
+    passwordInput: string
+  ): { success: boolean; error?: string } => {
+    const target = users.find((u) => u.id === userId);
+    if (!target) {
+      return { success: false, error: 'Compte utilisateur introuvable.' };
+    }
+    if (target.statut === 'Suspendu') {
+      return { success: false, error: 'Ce compte utilisateur est suspendu.' };
+    }
+    const expectedPassword = target.password || 'coop2026';
+    if (passwordInput !== expectedPassword) {
+      return {
+        success: false,
+        error: `Mot de passe incorrect pour le compte @${target.login}.`,
+      };
+    }
+
+    const now = new Date();
+    const dateStr = `Aujourd’hui à ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    updateUser(target.id, { dernierAcces: dateStr });
+    setCurrentUser({ ...target, dernierAcces: dateStr });
+    return { success: true };
+  };
+
   const switchUserById = (userId: string) => {
     const found = users.find((u) => u.id === userId);
     if (found) setCurrentUser(found);
@@ -381,9 +637,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .filter(([_, m]) => m.hasAccess)
       .map(([k]) => k);
 
+    const generatedLogin = userData.login
+      ? userData.login.trim().toLowerCase().replace(/\s+/g, '')
+      : (userData.nom || 'user').toLowerCase().replace(/\s+/g, '');
+
     const newUser: AppUser = {
       ...userData,
       id: `USR-${Date.now().toString().slice(-4)}`,
+      login: generatedLogin,
+      password: userData.password || 'coop2026',
       dernierAcces: 'Jamais connecté',
       permissions: {
         ...userData.permissions,
@@ -842,6 +1104,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider
       value={{
+        isAuthenticated,
+        login,
+        logout,
+        lockSession,
+        switchUserWithPassword,
         users,
         currentUser,
         config,
@@ -892,6 +1159,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         can,
         canAccessModule,
         canAccessSubModule,
+        convexStatus,
+        lastConvexSync,
+        convexError,
+        convexCloudUrl: CONVEX_CLOUD_URL,
+        convexSiteUrl: CONVEX_SITE_URL,
+        syncWithConvex,
+        testConvexConnection,
       }}
     >
       {children}

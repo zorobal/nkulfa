@@ -28,6 +28,7 @@ import {
   Lock,
   Unlock,
   Eye,
+  EyeOff,
   Plus,
   Edit3,
   Trash2,
@@ -56,6 +57,9 @@ export const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({
   // Identity Form
   const [nom, setNom] = useState(existingUser ? existingUser.nom : '');
   const [prenom, setPrenom] = useState(existingUser ? existingUser.prenom : '');
+  const [login, setLogin] = useState(existingUser ? (existingUser.login || '') : '');
+  const [password, setPassword] = useState(existingUser ? (existingUser.password || 'coop2026') : 'coop2026');
+  const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState(existingUser ? existingUser.email : '');
   const [telephone, setTelephone] = useState(existingUser ? existingUser.telephone : '+237 6');
   const [role, setRole] = useState<UserRole>(existingUser ? existingUser.role : 'agent_terrain');
@@ -348,10 +352,21 @@ export const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({
     e.preventDefault();
     setValidationError(null);
 
-    if (!nom.trim() || !email.trim()) {
-      setValidationError('Le nom et l’adresse email professionnelle sont obligatoires.');
+    if (!nom.trim()) {
+      setValidationError('Le nom de famille est obligatoire.');
       return;
     }
+
+    const effectiveLogin = (login.trim() || `${prenom.trim().slice(0, 1)}${nom.trim()}`)
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+
+    if (!effectiveLogin) {
+      setValidationError("L'identifiant / login de connexion est obligatoire.");
+      return;
+    }
+
+    const effectivePassword = password.trim() || 'coop2026';
 
     if (stats.activeModules === 0) {
       setValidationError('Veuillez accorder au moins un module à cet utilisateur.');
@@ -385,7 +400,9 @@ export const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({
     const userData: Omit<AppUser, 'id' | 'dernierAcces'> = {
       nom: nom.trim().toUpperCase(),
       prenom: prenom.trim(),
-      email: email.trim(),
+      login: effectiveLogin,
+      password: effectivePassword,
+      email: email.trim() || `${effectiveLogin}@coops-ca-nkul.cm`,
       role,
       fonction: fonction.trim() || 'Collaborateur',
       telephone: telephone.trim(),
@@ -450,6 +467,73 @@ export const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({
               1. Identité & Affectation Métier
             </h3>
 
+            {/* Login & Mot de Passe de connexion */}
+            <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-emerald-900 flex items-center gap-1.5 text-xs">
+                  <KeyRound className="w-3.5 h-3.5 text-emerald-700" />
+                  Identifiants de Sécurité & Connexion Session
+                </span>
+                <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-100/80 px-2 py-0.5 rounded">
+                  Connexion par Login (Pas d'email)
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">
+                    Identifiant / Login unique *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none font-mono text-xs text-slate-400">
+                      @
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      placeholder="ex: pebogo"
+                      value={login}
+                      onChange={(e) => setLogin(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                      className="w-full pl-7 pr-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 outline-none font-mono font-bold text-slate-900 bg-white"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Utilisé par le collaborateur pour se connecter à sa session de travail.
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-700 font-bold">
+                      Mot de passe de session *
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-mono">Défaut : coop2026</span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-3 pr-10 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 outline-none font-mono text-slate-900 bg-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                      title={showPassword ? 'Masquer' : 'Afficher'}
+                    >
+                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Requis pour ouvrir la session ou basculer sur ce compte utilisateur.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               <div>
                 <label className="block text-slate-700 font-bold mb-1">Nom de famille *</label>
@@ -458,7 +542,13 @@ export const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({
                   required
                   placeholder="ex: EBOGO"
                   value={nom}
-                  onChange={(e) => setNom(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNom(val);
+                    if (!existingUser && !login) {
+                      setLogin(`${prenom.slice(0, 1)}${val}`.toLowerCase().replace(/[^a-z0-9]/g, ''));
+                    }
+                  }}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 outline-none font-medium text-slate-900"
                 />
               </div>
@@ -469,15 +559,20 @@ export const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({
                   required
                   placeholder="ex: Patrice"
                   value={prenom}
-                  onChange={(e) => setPrenom(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPrenom(val);
+                    if (!existingUser && !login) {
+                      setLogin(`${val.slice(0, 1)}${nom}`.toLowerCase().replace(/[^a-z0-9]/g, ''));
+                    }
+                  }}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-600 outline-none font-medium text-slate-900"
                 />
               </div>
               <div>
-                <label className="block text-slate-700 font-bold mb-1">Email professionnel *</label>
+                <label className="block text-slate-700 font-bold mb-1">Email professionnel</label>
                 <input
                   type="email"
-                  required
                   placeholder="p.ebogo@coops-ca-nkul.cm"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

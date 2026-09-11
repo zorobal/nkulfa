@@ -23,6 +23,7 @@ import {
   Compass,
   CalendarRange,
   Lock,
+  LogOut,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -38,7 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen = false,
   onClose,
 }) => {
-  const { canAccessModule, currentUser } = useApp();
+  const { canAccessModule, currentUser, lockSession } = useApp();
 
   const menuItems = [
     {
@@ -182,18 +183,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Current User Session Bar */}
-        <div className="px-3.5 py-2 bg-[#042e22] border-b border-[#0b543e] flex items-center justify-between gap-2 text-[11px]">
-          <div className="min-w-0">
-            <div className="font-bold text-white truncate">
-              {currentUser.prenom} {currentUser.nom}
+        <div className="px-3 py-2 bg-[#042e22] border-b border-[#0b543e] flex items-center justify-between gap-2 text-[11px]">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-white truncate">
+                {currentUser.prenom} {currentUser.nom}
+              </span>
+              <span className="text-[9px] font-mono text-emerald-300 bg-emerald-900/90 px-1 py-0.2 rounded shrink-0">
+                @{currentUser.login}
+              </span>
             </div>
-            <div className="text-[9px] text-emerald-300 truncate font-medium">
+            <div className="text-[9px] text-emerald-300/80 truncate font-medium">
               {currentUser.fonction}
             </div>
           </div>
-          <span className="px-2 py-0.5 rounded-full bg-emerald-800/80 text-emerald-200 text-[9px] font-bold shrink-0 border border-emerald-700/50">
-            {visibleMenuItems.length}/{menuItems.length} mod.
-          </span>
+          <button
+            onClick={lockSession}
+            className="p-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 hover:text-white transition-colors shrink-0 border border-rose-800/60 cursor-pointer"
+            title="Fermer la session (Verrouiller le poste)"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         {/* Navigation Tab List */}

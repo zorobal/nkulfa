@@ -31,6 +31,10 @@ import {
   Layers,
   Lock,
   Unlock,
+  Cloud,
+  ExternalLink,
+  Activity,
+  RefreshCw,
 } from 'lucide-react';
 
 export const ParametresModule: React.FC = () => {
@@ -51,11 +55,65 @@ export const ParametresModule: React.FC = () => {
     elevages,
     parcelles,
     membres,
+    collectes,
+    campagnes,
+    convexStatus,
+    lastConvexSync,
+    convexCloudUrl,
+    convexSiteUrl,
+    syncWithConvex,
+    testConvexConnection,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<
     'cooperative' | 'utilisateurs' | 'referentiels' | 'seuils' | 'donnees'
   >('cooperative');
+
+  // Convex Diagnostic & Sync state
+  const [isTestingConvex, setIsTestingConvex] = useState(false);
+  const [convexTestResult, setConvexTestResult] = useState<any>(null);
+  const [isConvexSyncing, setIsConvexSyncing] = useState(false);
+  const [convexSyncFeedback, setConvexSyncFeedback] = useState<string | null>(null);
+
+  const handleTestConvex = async () => {
+    setIsTestingConvex(true);
+    setConvexTestResult(null);
+    try {
+      const res = await testConvexConnection();
+      setConvexTestResult(res);
+    } catch (err: any) {
+      setConvexTestResult({
+        cloudOk: false,
+        siteOk: false,
+        overallSuccess: false,
+        details: err.message || 'Erreur lors du test',
+      });
+    } finally {
+      setIsTestingConvex(false);
+    }
+  };
+
+  const handleForcePushConvex = async () => {
+    setIsConvexSyncing(true);
+    setConvexSyncFeedback(null);
+    try {
+      const res = await syncWithConvex(true);
+      setConvexSyncFeedback(res.message);
+    } finally {
+      setIsConvexSyncing(false);
+    }
+  };
+
+  const handlePullConvex = async () => {
+    setIsConvexSyncing(true);
+    setConvexSyncFeedback(null);
+    try {
+      const res = await syncWithConvex(false);
+      setConvexSyncFeedback(res.message);
+    } finally {
+      setIsConvexSyncing(false);
+    }
+  };
 
   // Form states for Cooperative
   const [coopForm, setCoopForm] = useState(config);
@@ -516,8 +574,11 @@ export const ParametresModule: React.FC = () => {
                     return (
                       <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-2.5 px-3">
-                          <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                            {u.prenom} {u.nom}
+                          <div className="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                            <span>{u.prenom} {u.nom}</span>
+                            <span className="font-mono text-[10px] text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded font-semibold border border-emerald-200">
+                              @{u.login}
+                            </span>
                             {isSelf && (
                               <span className="px-1.5 py-0.2 rounded-md bg-emerald-600 text-white text-[9px] font-extrabold">
                                 Vous
@@ -920,6 +981,166 @@ export const ParametresModule: React.FC = () => {
       {/* TAB 5: DONNEES, SAUVEGARDE & AUDIT */}
       {activeTab === 'donnees' && (
         <div className="space-y-4">
+          {/* CONVEX CLOUD & VERCEL ARCHITECTURE CARD */}
+          <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-teal-950 text-white rounded-3xl p-5 sm:p-6 shadow-xl border border-emerald-800/40 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center">
+                  <Cloud className="w-6 h-6 text-emerald-400" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black tracking-tight text-white">
+                      Base de Données Cloud Convex.dev & Hébergement Vercel
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/30 text-emerald-300 border border-emerald-400/30">
+                      Prioritaire
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    Frontend sur Vercel • Backend & Base de données sur Convex Cloud (EU-West-1)
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Pill */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 text-xs font-bold">
+                <span className="relative flex h-2.5 w-2.5">
+                  {convexStatus === 'connected' && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  )}
+                  <span
+                    className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                      convexStatus === 'connected'
+                        ? 'bg-emerald-400'
+                        : convexStatus === 'syncing'
+                        ? 'bg-amber-400'
+                        : 'bg-slate-400'
+                    }`}
+                  ></span>
+                </span>
+                <span>
+                  {convexStatus === 'connected'
+                    ? 'Convex Actif & Prioritaire'
+                    : convexStatus === 'syncing'
+                    ? 'Synchronisation en cours...'
+                    : 'Cache local actif'}
+                </span>
+              </div>
+            </div>
+
+            {/* Architecture Explanatory Banner */}
+            <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-start gap-3">
+              <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div className="text-xs space-y-1 text-slate-200">
+                <div className="font-bold text-white">
+                  Règle de Priorité des Données
+                </div>
+                <p className="text-[11px] leading-relaxed text-slate-300">
+                  Toutes les requêtes <strong>entrantes</strong> (chargement de la coopérative au démarrage) et <strong>sortantes</strong> (modifications des parcelles, collectes, membres, campagnes) ciblent en priorité Convex.dev. Le LocalStorage sert de miroir local instantané pour la robustesse et le mode hors-ligne.
+                </p>
+              </div>
+            </div>
+
+            {/* Connection URLs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+                  Cloud URL (Convex Database & API)
+                </span>
+                <div className="flex items-center justify-between font-mono text-[11px] text-emerald-300">
+                  <span className="truncate">{convexCloudUrl}</span>
+                  <a
+                    href={convexCloudUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-white hover:text-emerald-300 ml-2"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+                  HTTP Actions URL (REST Endpoints)
+                </span>
+                <div className="flex items-center justify-between font-mono text-[11px] text-emerald-300">
+                  <span className="truncate">{convexSiteUrl}</span>
+                  <a
+                    href={convexSiteUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-white hover:text-emerald-300 ml-2"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Diagnostic Output */}
+            {convexTestResult && (
+              <div
+                className={`p-3 rounded-2xl border text-xs space-y-1 ${
+                  convexTestResult.overallSuccess
+                    ? 'bg-emerald-900/40 border-emerald-500/40 text-emerald-200'
+                    : 'bg-rose-950/50 border-rose-500/40 text-rose-200'
+                }`}
+              >
+                <div className="font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Résultat du Diagnostic de Connexion</span>
+                </div>
+                <div className="font-mono text-[11px] space-y-0.5 opacity-90">
+                  <div>• Convex Cloud: {convexTestResult.cloudStatusText}</div>
+                  <div>• HTTP Actions: {convexTestResult.siteStatusText}</div>
+                </div>
+                <p className="text-[11px] opacity-80">{convexTestResult.details}</p>
+              </div>
+            )}
+
+            {convexSyncFeedback && (
+              <div className="p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 text-xs font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{convexSyncFeedback}</span>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleTestConvex}
+                disabled={isTestingConvex}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Activity className={`w-3.5 h-3.5 ${isTestingConvex ? 'animate-spin' : ''}`} />
+                <span>{isTestingConvex ? 'Diagnostic en cours...' : 'Tester la connexion Convex'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleForcePushConvex}
+                disabled={isConvexSyncing}
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+              >
+                <Cloud className={`w-3.5 h-3.5 ${isConvexSyncing ? 'animate-bounce' : ''}`} />
+                <span>Pousser vers Convex (Sortant)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePullConvex}
+                disabled={isConvexSyncing}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isConvexSyncing ? 'animate-spin' : ''}`} />
+                <span>Recharger depuis Convex (Entrant)</span>
+              </button>
+            </div>
+          </div>
+
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-5">
             <div className="pb-3 border-b border-slate-200">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">

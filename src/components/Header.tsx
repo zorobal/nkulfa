@@ -18,9 +18,15 @@ import {
   DollarSign,
   Users,
   CalendarRange,
+  LogOut,
+  Lock,
+  Cloud,
 } from 'lucide-react';
 import { APP_IMAGES } from '../assets/images';
 import { useApp } from '../context/AppContext';
+import { AppUser } from '../types';
+import { SwitchUserPasswordModal } from './SwitchUserPasswordModal';
+import { ConvexSyncModal } from './ConvexSyncModal';
 
 interface HeaderProps {
   title: string;
@@ -44,14 +50,18 @@ export const Header: React.FC<HeaderProps> = ({
   const {
     currentUser,
     users,
-    switchUserById,
     campagnes,
     activeCampagneCode,
     setActiveCampagneCode,
+    lockSession,
+    convexStatus,
   } = useApp();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [isPeriodMenuOpen, setIsPeriodMenuOpen] = useState(false);
+  const [userToSwitch, setUserToSwitch] = useState<AppUser | null>(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isConvexModalOpen, setIsConvexModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const createMenuRef = useRef<HTMLDivElement>(null);
   const periodMenuRef = useRef<HTMLDivElement>(null);
@@ -334,6 +344,40 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
+        {/* Convex Cloud Live Sync Badge */}
+        <button
+          type="button"
+          onClick={() => setIsConvexModalOpen(true)}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer shadow-xs ${
+            convexStatus === 'connected'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+              : convexStatus === 'syncing'
+              ? 'bg-amber-50 text-amber-800 border-amber-300 animate-pulse'
+              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+          }`}
+          title="Base de données Cloud Convex.dev (Cliquez pour afficher les paramètres et tester la connexion)"
+        >
+          <span className="relative flex h-2 w-2">
+            {convexStatus === 'connected' && (
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            )}
+            <span
+              className={`relative inline-flex rounded-full h-2 w-2 ${
+                convexStatus === 'connected'
+                  ? 'bg-emerald-500'
+                  : convexStatus === 'syncing'
+                  ? 'bg-amber-500'
+                  : 'bg-slate-400'
+              }`}
+            ></span>
+          </span>
+          <Cloud className="w-3.5 h-3.5 text-emerald-700" />
+          <span className="font-mono text-[11px] font-bold hidden sm:inline">Convex Cloud</span>
+          <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-200/60 text-emerald-900 font-extrabold hidden md:inline">
+            Prioritaire
+          </span>
+        </button>
+
         {/* Notification Bell */}
         <div className="relative cursor-pointer p-2 rounded-xl hover:bg-slate-100 transition-colors">
           <Bell className="w-4 h-4 text-slate-600" />
@@ -366,47 +410,113 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Switch User Dropdown */}
           {isUserMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 p-2 space-y-1 text-xs animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 p-2 space-y-1 text-xs animate-in fade-in zoom-in-95 duration-100">
               <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                <div className="font-bold text-slate-900">Gestion des Accès & Rôles</div>
-                <div className="text-[10px] text-slate-500">
-                  Sélectionnez un profil pour tester les permissions :
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900">Comptes Utilisateurs & Sécurité</span>
+                  <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-semibold">
+                    @{currentUser.login}
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-500 mt-0.5">
+                  Un mot de passe sera demandé pour basculer vers un autre compte :
                 </div>
               </div>
 
-              {users.map((u) => {
-                const isSelected = u.id === currentUser.id;
-                return (
-                  <button
-                    key={u.id}
-                    onClick={() => {
-                      switchUserById(u.id);
-                      setIsUserMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors ${
-                      isSelected
-                        ? 'bg-emerald-50 text-emerald-900 font-bold border border-emerald-200'
-                        : 'hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <div className="min-w-0 pr-2">
-                      <div className="font-bold truncate">
-                        {u.prenom} {u.nom}
+              <div className="max-h-60 overflow-y-auto space-y-1">
+                {users.map((u) => {
+                  const isSelected = u.id === currentUser.id;
+                  return (
+                    <button
+                      key={u.id}
+                      onClick={() => {
+                        if (isSelected) {
+                          setIsUserMenuOpen(false);
+                          return;
+                        }
+                        setUserToSwitch(u);
+                        setIsPasswordModalOpen(true);
+                        setIsUserMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'bg-emerald-50 text-emerald-900 font-bold border border-emerald-200'
+                          : 'hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <div className="min-w-0 pr-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold truncate">
+                            {u.prenom} {u.nom}
+                          </span>
+                          <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1 rounded">
+                            @{u.login}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 truncate">{u.fonction}</div>
                       </div>
-                      <div className="text-[10px] text-slate-500 truncate">{u.fonction}</div>
-                    </div>
-                    {isSelected && <Check className="w-4 h-4 text-emerald-700 shrink-0" />}
-                  </button>
-                );
-              })}
+                      {isSelected ? (
+                        <Check className="w-4 h-4 text-emerald-700 shrink-0" />
+                      ) : (
+                        <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
 
-              <div className="pt-2 border-t border-slate-100 px-2 text-[10px] text-slate-400 flex items-center gap-1.5">
+              {/* Explicit Lock / Logout Button */}
+              <div className="pt-2 border-t border-slate-100 space-y-1">
+                <button
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    lockSession();
+                  }}
+                  className="w-full flex items-center gap-2 p-2 rounded-xl text-left bg-rose-50 hover:bg-rose-100 text-rose-800 transition-colors cursor-pointer font-bold"
+                  title="Fermer la session pour sécuriser le poste de travail"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-rose-200/80 text-rose-700 flex items-center justify-center shrink-0">
+                    <LogOut className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs">Fermer la session (Verrouiller)</div>
+                    <div className="text-[10px] text-rose-600/80 font-normal">
+                      Sécuriser l'accès en quittant l'ordinateur
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              <div className="pt-1 px-2 text-[10px] text-slate-400 flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Sécurité RBAC COOPS-FLOW active</span>
+                <span>Sécurité OHADA & Authentification active</span>
               </div>
             </div>
           )}
         </div>
+
+        {/* Quick Direct Logout / Lock Button in Header Bar */}
+        <button
+          onClick={lockSession}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-700 text-xs font-bold transition-all shadow-xs cursor-pointer"
+          title="Fermer immédiatement la session (quand vous quittez l'ordinateur)"
+        >
+          <LogOut className="w-3.5 h-3.5 text-rose-600" />
+          <span className="hidden sm:inline">Fermer session</span>
+        </button>
+
+        {/* Password Modal for User Switching */}
+        <SwitchUserPasswordModal
+          isOpen={isPasswordModalOpen}
+          targetUser={userToSwitch}
+          onClose={() => setIsPasswordModalOpen(false)}
+        />
+
+        {/* Convex Cloud Database & Sync Modal */}
+        <ConvexSyncModal
+          isOpen={isConvexModalOpen}
+          onClose={() => setIsConvexModalOpen(false)}
+        />
 
         {/* Panoramic Pastoral Image Banner */}
         {showPanoramicBanner && (

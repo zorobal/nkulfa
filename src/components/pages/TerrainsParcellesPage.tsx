@@ -1191,17 +1191,26 @@ export const TerrainsParcellesPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">Commune / Bassin</label>
-                  <select
+                  <input
+                    type="text"
+                    list="terrain-communes-list"
                     value={terrainForm.commune}
                     onChange={(e) => setTerrainForm({ ...terrainForm, commune: e.target.value })}
-                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  >
-                    <option value="Obala">Obala (Lekié)</option>
-                    <option value="Mbalmayo">Mbalmayo (Nyong-et-So'o)</option>
-                    <option value="Sa'a">Sa'a (Lekié)</option>
-                    <option value="Bafia">Bafia (Mbam)</option>
-                    <option value="Soa">Soa (Méfou-et-Afamba)</option>
-                  </select>
+                    placeholder="Ex: Obala, Sa'a, Bafia, Soa..."
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <datalist id="terrain-communes-list">
+                    <option value="Obala" />
+                    <option value="Mbalmayo" />
+                    <option value="Sa'a" />
+                    <option value="Bafia" />
+                    <option value="Soa" />
+                    <option value="Monatélé" />
+                    <option value="Ngoumou" />
+                    <option value="Batchenga" />
+                    <option value="Okola" />
+                    <option value="Evodoula" />
+                  </datalist>
                 </div>
 
                 <div>

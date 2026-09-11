@@ -16,6 +16,7 @@ import { SupplyChainModule } from './components/SupplyChainModule';
 import { CommercialFinanceModule } from './components/CommercialFinanceModule';
 import { BiAnalyticsModule } from './components/BiAnalyticsModule';
 import { CampagnesManagerPage } from './components/pages/CampagnesManagerPage';
+import { LoginScreen } from './components/LoginScreen';
 import {
   Home,
   MapPin,
@@ -42,7 +43,12 @@ function AppContent() {
   const [currentTab, setCurrentTab] = useState<NavigationTab>('accueil');
   const [pageIndex, setPageIndex] = useState<number>(1);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
-  const { canAccessModule, currentUser, switchUserById } = useApp();
+  const { canAccessModule, currentUser, isAuthenticated, switchUserById } = useApp();
+
+  // If user locked or closed their session, display the secure login screen
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
 
   // Synchronize Tab and Page Index
   const handleSelectTab = (tab: NavigationTab) => {
